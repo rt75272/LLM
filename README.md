@@ -69,13 +69,15 @@ Expected output (truncated):
   Params  : 29,248
 ============================================================
 
-Training for 300 steps …
+Training for 500 steps …
 
-  step    100/300  loss 3.0434
-  step    200/300  loss 2.5681
-  step    300/300  loss 2.4616
+  step    100/500  loss 2.9200
+  step    200/500  loss 2.4727
+  step    300/500  loss 2.3978
+  step    400/500  loss 2.3026
+  step    500/500  loss 2.2873
 
-Final loss : 2.4616
+Final loss : 2.1970
 
 ============================================================
   Generating 300 characters  (prompt: 'To be')
@@ -105,7 +107,7 @@ model = GPT(
 )
 
 # 3. Train
-losses = train(model, data, n_steps=1000, lr=3e-3)
+losses = train(model, data, n_steps=1000, lr=3e-3, lr_decay=True)
 
 # 4. Generate
 tokens = generate(model, tokenizer.encode("Once upon"), max_new_tokens=200,
@@ -131,6 +133,6 @@ tokenizer2 = CharTokenizer.load("tokenizer.json")
 | **Attention** | Multi-head causal (masked) self-attention; backward derived analytically |
 | **Normalisation** | Pre-norm LayerNorm with analytic backward pass |
 | **Activation** | GELU with exact gradient |
-| **Optimiser** | Adam (β₁=0.9, β₂=0.999) with optional weight decay |
+| **Optimiser** | Adam (β₁=0.9, β₂=0.999) with cosine learning-rate decay and optional weight decay |
 | **Generation** | Autoregressive with temperature scaling and top-k filtering |
 | **Persistence** | Binary format via `struct` (model) and JSON (tokenizer) |

@@ -46,6 +46,7 @@ def train(
     weight_decay: float = 0.0,
     eval_interval: int = 100,
     verbose: bool = True,
+    lr_decay: bool = True,
 ) -> list:
     """
     Train *model* on *data* for *n_steps* gradient-descent steps.
@@ -58,10 +59,13 @@ def train(
     data          : flat list of integer token ids
     n_steps       : total number of optimisation steps
     block_size    : context length (defaults to model.block_size)
-    lr            : Adam learning rate
+    lr            : peak Adam learning rate
     weight_decay  : L2 regularisation
     eval_interval : print average loss every this many steps (0 = silent)
     verbose       : whether to print progress
+    lr_decay      : if True, apply cosine learning-rate decay from *lr* to
+                    *lr* / 10 over the course of training (improves
+                    convergence at no extra computational cost)
 
     Returns
     -------
@@ -72,10 +76,17 @@ def train(
 
     optimizer = Adam(model.params(), lr=lr, weight_decay=weight_decay)
 
+    lr_min = lr / 10.0  # floor for cosine decay
+
     losses = []
     window = []  # recent losses for the running average
 
     for step in range(1, n_steps + 1):
+        # Cosine learning-rate decay
+        if lr_decay:
+            decay = 0.5 * (1.0 + math.cos(math.pi * step / n_steps))
+            optimizer.lr = lr_min + (lr - lr_min) * decay
+
         x, y = get_batch(data, block_size)
 
         # Forward
