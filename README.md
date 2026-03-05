@@ -1,138 +1,76 @@
 # LLM — Large Language Model from Scratch
 
-A GPT-style decoder-only transformer built entirely in **pure Python** with
-**no third-party packages**.  Everything — matrix algebra, back-propagation,
-the Adam optimiser, and autoregressive text generation — is implemented from
-first principles using only Python's standard library (`math`, `random`,
-`json`, `struct`).
+A simple character-level GPT-style decoder-only language model built from scratch using **PyTorch**. This project provides a minimalistic, modular implementation of a Transformer network, intended for educational purposes and experimentation.
 
----
+
+## What is an LLM?
+
+Large Language Models (LLMs) are artificial intelligence systems designed to understand, generate, and interact with human language. At their core, they are highly complex deep learning models trained on vast amounts of text to recognize patterns in language.
+
+### How are they built?
+
+Building a modern GPT-style LLM broadly follows these steps:
+
+1. **Tokenization:** Raw text is broken down into small manageable pieces called "tokens" (which can be characters, sub-words, or whole words). Each token is mapped to a numeric ID.
+2. **Embedding:** Those integer IDs are converted into dense mathematical vectors (embeddings) so the neural network can process their meanings.
+3. **The Transformer Architecture:** The model uses **self-attention mechanisms** to evaluate how important every token in a sequence is to every other token. This allows the model to deeply understand grammatical structure and context over long distances.
+4. **Pre-Training (Next-Token Prediction):** The core training objective is deceptively simple: given a sequence of tokens, predict the very *next* token. We calculate a loss (how wrong the prediction was) and use backpropagation and optimizers (like AdamW) to adjust the model's millions/billions of internal weights.
+5. **Inference (Autoregressive Generation):** Once training is complete, we feed a starting prompt into the model. It predicts the most likely next token, appends it to the context window, and repeats the process over and over to generate coherent text.
+
 
 ## Architecture
 
-```
-Token Embedding  +  Positional Embedding
-        │
- ┌──────▼──────┐  ×  N
- │  LayerNorm  │
- │  CausalSelf │   multi-head masked self-attention
- │  Attention  │
- │  + residual │
- ├─────────────┤
- │  LayerNorm  │
- │  FeedForward│   Linear → GELU → Linear  (4× expansion)
- │  + residual │
- └──────┬──────┘
-        │
-   LayerNorm  →  Linear (LM head)  →  Cross-Entropy Loss
-```
+The model implements a standard decoder-only Transformer with the following components:
+- **Token Embedding:** Translates raw character integers into continuous vectors.
+- **Positional Embedding:** Injects order information into the sequence.
+- **Transformer Blocks:** A sequence of blocks containing:
+  - **Multi-Head Self-Attention:** Specifically Causal Self-Attention (using a mask to prevent looking into the future).
+  - **FeedForward Network:** A linear layer followed by ReLU activation and another linear projection.
+  - **LayerNorm & Residual Connections:** Pre-norm architecture for stable training.
+- **LM Head:** A final linear mapping to predict the next character over the vocabulary.
 
-Trained with **Adam** and **backpropagation** implemented manually through
-every layer.
 
----
 
-## Project layout
+## Project Layout
 
-```
-llm/
-  __init__.py      public API
-  matrix.py        pure-Python matrix / vector operations
-  tokenizer.py     character-level tokenizer (fit / encode / decode / save / load)
-  layers.py        Embedding, Linear, LayerNorm, CausalSelfAttention,
-                   FeedForward, TransformerBlock  (forward + backward)
-  model.py         GPT model + cross_entropy_loss
-  optimizer.py     Adam optimiser
-  trainer.py       training loop  (get_batch, train)
-  generate.py      autoregressive generation  (temperature + top-k sampling)
-main.py            end-to-end demo (train on Shakespeare excerpt, then generate)
-requirements.txt   empty — no dependencies
+The codebase has been refactored into modular components for clarity and reusability:
+
+```text
+config.py    - Hyperparameters and device setup (GPU/CPU)
+dataset.py   - Tiny character-level dataset and tokenizer, along with batching logic
+model.py     - PyTorch modules for Head, MultiHeadAttention, FeedForward, Block, and the SimpleLLM
+train.py     - Training loop with AdamW optimizer and loss evaluation
+generate.py  - Autoregressive text generation inference code
+main.py      - End-to-end entry point that ties all the modules together
 ```
 
----
 
-## Quick start
+## Quick Start
+
+Make sure you have PyTorch installed (e.g., via `pip install torch`).
+
+Run the main script to start training and generate text:
 
 ```bash
 python main.py
 ```
 
-Expected output (truncated):
+### Expected Flow
+1. **Setup:** Detects available device (e.g., `cuda` or `cpu`).
+2. **Training:** Initializes a GPT-style model. Trains the model over iterations using the AdamW optimizer. Periodic loss is printed.
+3. **Generation:** Once training is complete, the model generates and prints a sample of text autogressively based on the learned patterns.
 
-```
-============================================================
-  From-Scratch LLM  (pure Python, no third-party packages)
-============================================================
-  Corpus  : 1,406 characters
-  Vocab   : 43 unique characters
-  Tokens  : 1,406
-  Params  : 29,248
-============================================================
 
-Training for 500 steps …
+## Configuration
 
-  step    100/500  loss 2.9200
-  step    200/500  loss 2.4727
-  step    300/500  loss 2.3978
-  step    400/500  loss 2.3026
-  step    500/500  loss 2.2873
+You can tweak the hyperparameters in `config.py` to change the size and performance of the model:
 
-Final loss : 2.1970
+- `batch_size`: Number of independent sequences processed in parallel (currently 64).
+- `block_size`: Maximum context length (currently 256).
+- `max_iters`: Total training iterations.
+- `learning_rate`: Default set to 3e-4.
+- `n_embd`: Embedding dimension (currently 384).
+- `n_head`: Number of self-attention heads (currently 6).
+- `n_layer`: Number of Transformer blocks (currently 6).
 
-============================================================
-  Generating 300 characters  (prompt: 'To be')
-============================================================
-
-To be ...
-```
-
----
-
-## Using the library
-
-```python
-from llm import CharTokenizer, GPT, train, generate
-
-# 1. Tokenise your corpus
-tokenizer = CharTokenizer().fit(my_text)
-data = tokenizer.encode(my_text)
-
-# 2. Build a model
-model = GPT(
-    vocab_size  = tokenizer.vocab_size,
-    n_embd      = 64,   # embedding dimension
-    n_head      = 4,    # attention heads
-    n_layer     = 4,    # transformer blocks
-    block_size  = 64,   # context window
-)
-
-# 3. Train
-losses = train(model, data, n_steps=1000, lr=3e-3, lr_decay=True)
-
-# 4. Generate
-tokens = generate(model, tokenizer.encode("Once upon"), max_new_tokens=200,
-                  temperature=0.8, top_k=10)
-print(tokenizer.decode(tokens))
-
-# 5. Save / load
-model.save("model.bin")
-tokenizer.save("tokenizer.json")
-
-model2    = GPT.load("model.bin")
-tokenizer2 = CharTokenizer.load("tokenizer.json")
-```
-
----
-
-## Implementation notes
-
-| Component | Details |
-|-----------|---------|
-| **Tokenizer** | Character-level; vocabulary built from unique characters in the corpus |
-| **Embeddings** | Token + learned positional embeddings |
-| **Attention** | Multi-head causal (masked) self-attention; backward derived analytically |
-| **Normalisation** | Pre-norm LayerNorm with analytic backward pass |
-| **Activation** | GELU with exact gradient |
-| **Optimiser** | Adam (β₁=0.9, β₂=0.999) with cosine learning-rate decay and optional weight decay |
-| **Generation** | Autoregressive with temperature scaling and top-k filtering |
-| **Persistence** | Binary format via `struct` (model) and JSON (tokenizer) |
+If a GPU is available, the configuration automatically utilizes `cuda` for accelerated training.

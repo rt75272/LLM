@@ -1,2 +1,2 @@
-# No third-party packages required.
-# This LLM is implemented entirely with Python's standard library.
+torch
+numpy
