@@ -4,7 +4,7 @@ main.py — end-to-end demonstration of the from-scratch LLM.
 What this script does
 ---------------------
 1. Trains a small GPT model on a short excerpt of Shakespeare.
-2. Prints the training loss every 100 steps.
+2. Prints the training loss every 100 steps (with cosine LR decay).
 3. Generates new text from the trained model.
 
 No third-party packages are used — only Python's standard library.
@@ -59,12 +59,12 @@ And lose the name of action.
 # Hyperparameters  (kept small for pure-Python speed)
 # ---------------------------------------------------------------------------
 
-BLOCK_SIZE = 32   # context window
-N_EMBD     = 32   # embedding / model dimension
-N_HEAD     = 2    # attention heads  (head_dim = N_EMBD // N_HEAD = 16)
-N_LAYER    = 2    # transformer blocks
-N_STEPS    = 300  # training steps
-LR         = 5e-3 # learning rate
+BLOCK_SIZE = 32    # context window
+N_EMBD     = 32    # embedding / model dimension
+N_HEAD     = 2     # attention heads  (head_dim = N_EMBD // N_HEAD = 16)
+N_LAYER    = 2     # transformer blocks
+N_STEPS    = 500   # training steps
+LR         = 3e-3  # peak learning rate (cosine-decayed during training)
 
 # ---------------------------------------------------------------------------
 # Main
@@ -120,7 +120,7 @@ def main():
         model,
         start_tokens,
         max_new_tokens=300,
-        temperature=0.8,
+        temperature=0.7,
         top_k=10,
     )
     print(tokenizer.decode(tokens))
