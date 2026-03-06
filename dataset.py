@@ -11,9 +11,9 @@ Usage:
     print(decode(xb[0].tolist()), "->", decode(yb[0].tolist()))
 """
 import torch
-from config import block_size, batch_size, device
+from config import batch_size, block_size, device, use_hf_dialogue_dataset
 
-text = """
+BASE_TEXT = """
 The quick brown fox jumps over the lazy dog. 
 To be, or not to be, that is the question.
 Artificial intelligence is the simulation of human intelligence.
@@ -24,7 +24,57 @@ Deep learning is part of a broader family of machine learning methods based on a
 The history of Natural Language Processing generally started in the 1950s, although work can be found from earlier periods.
 Transformers have revolutionized the field of NLP by enabling the processing of sequences in parallel.
 Attention is all you need: the architectural breakthrough that made modern large language models possible.
-""" * 500 # Duplicating it to simulate a larger corpus
+"""
+
+FALLBACK_DIALOGUES = [
+    ("Hello", "Hi. How can I help you today?"),
+    ("What is a transformer model?", "A transformer model uses attention to relate tokens across a sequence and predict the next token more effectively."),
+    ("Can you explain machine learning simply?", "Machine learning is a way for computers to learn patterns from examples instead of following only hand-written rules."),
+    ("Why is Python popular?", "Python is popular because it is readable, productive, and has strong libraries for data science and automation."),
+    ("How do I train a language model?", "You collect text, tokenize it, train on next-token prediction, and tune the optimizer and context length carefully."),
+    ("What does overfitting mean?", "Overfitting means the model memorizes the training data too closely and performs poorly on new examples."),
+    ("Can you be more concise?", "Yes. I can keep answers shorter and more direct."),
+    ("How does attention work?", "Attention scores each token against the others so the model can focus on the most relevant context."),
+]
+
+
+def _load_dialogue_text():
+    fallback_text = "\n".join(
+        f"User: {user}\nAssistant: {assistant}" for user, assistant in FALLBACK_DIALOGUES
+    )
+    if not use_hf_dialogue_dataset:
+        return fallback_text
+
+    try:
+        from datasets import load_dataset
+    except ImportError:
+        return fallback_text
+
+    try:
+        dataset = load_dataset("daily_dialog", split="train[:1%]")
+    except Exception:
+        return fallback_text
+
+    dialogue_samples = []
+    for sample in dataset:
+        turns = sample.get("dialog") or []
+        paired_turns = []
+        for index in range(0, len(turns) - 1, 2):
+            user = turns[index].strip()
+            assistant = turns[index + 1].strip()
+            if user and assistant:
+                paired_turns.append(f"User: {user}\nAssistant: {assistant}")
+        if paired_turns:
+            dialogue_samples.append("\n".join(paired_turns))
+
+    if not dialogue_samples:
+        return fallback_text
+
+    dialogue_text = "\n".join(dialogue_samples[:300])
+    return f"{fallback_text}\n{dialogue_text}"
+
+
+text = f"{BASE_TEXT}\n{_load_dialogue_text()}\n" * 200
 
 chars = sorted(list(set(text)))
 vocab_size = len(chars)

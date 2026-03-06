@@ -15,6 +15,18 @@ eval_iters = 200     # How often to report loss
 n_embd = 384         # Embedding dimension (size of the vector representing a token)
 n_head = 6           # Number of attention heads
 n_layer = 6          # Number of transformer blocks
+max_new_tokens = 180
+temperature = 0.85
+top_k = 40
+top_p = 0.92
+repetition_penalty = 1.08
+conversation_turns = 4
+use_hf_dialogue_dataset = False
+chat_backend = 'pretrained'
+pretrained_model_name = 'HuggingFaceTB/SmolLM2-360M-Instruct'
+pretrained_max_new_tokens = 120
+code_model_name = 'Qwen/Qwen2.5-Coder-0.5B-Instruct'
+code_max_new_tokens = 220
 
 # Use GPU if available, otherwise fallback to CPU
 device = ''

@@ -40,8 +40,8 @@ config.py    - Hyperparameters and device setup (GPU/CPU)
 dataset.py   - Tiny character-level dataset and tokenizer, along with batching logic
 model.py     - PyTorch modules for Head, MultiHeadAttention, FeedForward, Block, and the SimpleLLM
 train.py     - Training loop with AdamW optimizer and loss evaluation
-generate.py  - Autoregressive text generation inference code
-main.py      - End-to-end entry point that ties all the modules together
+generate.py  - Interactive chat loop for pretrained and local model backends
+main.py      - Entry point that launches chat or trains the local toy model
 ```
 
 
@@ -49,7 +49,7 @@ main.py      - End-to-end entry point that ties all the modules together
 
 Make sure you have PyTorch installed (e.g., via `pip install torch`).
 
-Run the main script to start training and generate text:
+Run the main script to launch the chatbot:
 
 ```bash
 python main.py
@@ -57,8 +57,19 @@ python main.py
 
 ### Expected Flow
 1. **Setup:** Detects available device (e.g., `cuda` or `cpu`).
-2. **Training:** Initializes a GPT-style model. Trains the model over iterations using the AdamW optimizer. Periodic loss is printed.
-3. **Generation:** Once training is complete, the model generates and prints a sample of text autogressively based on the learned patterns.
+2. **Chat:** By default, loads a pretrained conversational model and starts an interactive terminal chat session.
+3. **Fallback:** If you switch `chat_backend` to `'local'`, the project trains the scratch GPT-style model and then launches chat.
+
+## Conversation Improvements
+
+The chatbot now uses a few inference-time libraries and controls to make responses smoother:
+
+- **Pretrained conversation model:** Uses `HuggingFaceTB/SmolLM2-360M-Instruct` by default for actual chat quality.
+- **Code-capable model routing:** Sends coding requests to `Qwen/Qwen2.5-Coder-0.5B-Instruct` so Python and other code prompts use a model tuned for code generation.
+- **Transformers logits processors:** Applies temperature scaling, top-k sampling, top-p nucleus sampling, and repetition penalties during decoding.
+- **Datasets dialogue loading:** Can pull in conversational examples from `daily_dialog` when enabled in `config.py`, with a built-in fallback corpus used by default.
+- **Conversation history:** Recent turns are folded back into the prompt so responses stay more consistent across multiple exchanges.
+- **Rich terminal UI:** Displays a cleaner interactive chat interface in the terminal.
 
 
 ## Configuration
@@ -74,3 +85,5 @@ You can tweak the hyperparameters in `config.py` to change the size and performa
 - `n_layer`: Number of Transformer blocks (currently 6).
 
 If a GPU is available, the configuration automatically utilizes `cuda` for accelerated training.
+
+For the best chatbot behavior, keep `chat_backend = 'pretrained'` in `config.py`. The local backend is still useful as a learning/demo path, but it is not competitive as a real chatbot.

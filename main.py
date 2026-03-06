@@ -7,16 +7,20 @@ Usage:
     python main.py
 """
 import torch
-from config import device
+from config import chat_backend, device
 from model import SimpleLLM
 from train import train_model
-from generate import generate_text
+from generate import chat
 
 def main():
     print(f"Using device: {device}")
+    if chat_backend == 'pretrained':
+        chat()
+        return
+
     model = SimpleLLM().to(device) # Initialize model and move it to GPU.
     model = train_model(model) # Train the model.
-    generate_text(model) # Generate text using the trained model.
+    chat(model) # Start an interactive chat session.
 
 # The big red activation button.
 if __name__ == '__main__':

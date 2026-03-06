@@ -16,6 +16,13 @@ import torch.nn as nn
 from torch.nn import functional as F
 from config import n_embd, block_size, device, n_head, n_layer
 from dataset import vocab_size
+from transformers import (
+    LogitsProcessorList,
+    RepetitionPenaltyLogitsProcessor,
+    TemperatureLogitsWarper,
+    TopKLogitsWarper,
+    TopPLogitsWarper,
+)
 
 class Head(nn.Module):
     """One head of self-attention.
@@ -221,20 +228,44 @@ class SimpleLLM(nn.Module):
             loss = F.cross_entropy(logits, targets)
         return logits, loss
 
-    def generate(self, idx, max_new_tokens):
+    def generate(
+        self,
+        idx,
+        max_new_tokens,
+        temperature=1.0,
+        top_k=None,
+        top_p=None,
+        repetition_penalty=1.0,
+    ):
         """Generate new text tokens given a starting context and a specified number of new tokens to generate.
         
         Args:
             idx: A tensor of shape (B, T) containing the input token indices for a batch of sequences.
             max_new_tokens: An integer specifying the maximum number of new tokens to generate.
+            temperature: Scales the logits before sampling.
+            top_k: Restrict sampling to the top-k logits when provided.
+            top_p: Restrict sampling to the smallest set of tokens whose cumulative probability exceeds top-p.
+            repetition_penalty: Penalize tokens that have already appeared in the running context.
 
         Returns:
             idx: A tensor of shape (B, T + max_new_tokens) containing the input token indices concatenated with the generated token indices.
         """
+        processors = LogitsProcessorList()
+        if temperature and temperature != 1.0:
+            processors.append(TemperatureLogitsWarper(float(temperature)))
+        if top_k:
+            processors.append(TopKLogitsWarper(int(top_k)))
+        if top_p and top_p < 1.0:
+            processors.append(TopPLogitsWarper(float(top_p)))
+        if repetition_penalty and repetition_penalty != 1.0:
+            processors.append(RepetitionPenaltyLogitsProcessor(float(repetition_penalty)))
+
         for _ in range(max_new_tokens):
             idx_cond = idx[:, -block_size:]
-            logits, loss = self(idx_cond)
+            logits, _ = self(idx_cond)
             logits = logits[:, -1, :]
+            if processors:
+                logits = processors(idx_cond, logits)
             probs = F.softmax(logits, dim=-1)
             idx_next = torch.multinomial(probs, num_samples=1)
             idx = torch.cat((idx, idx_next), dim=1)
