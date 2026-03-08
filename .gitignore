@@ -1,7 +1,7 @@
+.venv/
+venv/
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.bin
-*.json
-llm/*
+chroma_db/
+data/
+legacy/
+.env
